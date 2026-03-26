@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+@media (min-width: 1024px) {
+  a, button, input, select, textarea {
+    cursor: none !important;
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+}
