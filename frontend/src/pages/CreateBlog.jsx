@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FiImage, FiSend, FiChevronLeft, FiAlertCircle, FiCheckCircle } from 'react-icons/fi';
-import { useNavigate } from 'react-router-dom';
+import { FiImage, FiSend, FiChevronLeft, FiAlertCircle, FiCheckCircle, FiEdit3 } from 'react-icons/fi';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import API from '../services/api';
 
 const CreateBlog = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const titleRef = useRef(null);
   
   const [formData, setFormData] = useState({
@@ -17,8 +18,12 @@ const CreateBlog = () => {
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState('');
   const [user, setUser] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingBlogId, setEditingBlogId] = useState(null);
 
   const categories = ['Tech', 'Health', 'Education', 'Sports', 'Lifestyle'];
+
+  const location = useLocation();
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
@@ -29,13 +34,70 @@ const CreateBlog = () => {
       return;
     }
     
-    setUser(JSON.parse(userData));
+    const parsed = JSON.parse(userData);
+    setUser(parsed);
+
+    // Check if we're editing a blog
+    const editId = searchParams.get('edit');
+    if (editId) {
+      setIsEditing(true);
+      setEditingBlogId(editId);
+      fetchBlogForEditing(editId, parsed);
+    }
 
     if (titleRef.current) {
       titleRef.current.style.height = 'auto';
       titleRef.current.style.height = titleRef.current.scrollHeight + 'px';
     }
-  }, [navigate]);
+  }, [navigate, searchParams, location]);
+
+  useEffect(() => {
+    const handleUserUpdate = () => {
+      const userData = localStorage.getItem('user');
+      setUser(userData ? JSON.parse(userData) : null);
+    };
+
+    window.addEventListener('storage', handleUserUpdate);
+    window.addEventListener('userChanged', handleUserUpdate);
+
+    return () => {
+      window.removeEventListener('storage', handleUserUpdate);
+      window.removeEventListener('userChanged', handleUserUpdate);
+    };
+  }, []);
+
+  const fetchBlogForEditing = async (blogId, currentUser = null) => {
+    try {
+      setLoading(true);
+      const response = await API.get(`/blogs/${blogId}`);
+      const blog = response.data;
+      
+      // Ensure we have current user for author check
+      const localUser = currentUser || user || JSON.parse(localStorage.getItem('user') || 'null');
+      const authorId = blog.author?._id || blog.author;
+      const currentUserId = localUser?._id || localUser?.id;
+
+      if (!currentUserId || authorId?.toString() !== currentUserId.toString()) {
+        alert('You can only edit your own blogs');
+        navigate('/');
+        return;
+      }
+      
+      setFormData({
+        title: blog.title,
+        category: blog.category,
+        content: blog.content,
+        image: blog.image,
+      });
+      setPreview(blog.image);
+    } catch (err) {
+      console.error('Error fetching blog for editing:', err);
+      alert('Failed to load blog for editing');
+      navigate('/');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -65,14 +127,21 @@ const CreateBlog = () => {
     setLoading(true);
 
     try {
-      const response = await API.post('/blogs', formData);
-      if (response.data) {
+      let response;
+      if (isEditing) {
+        response = await API.put(`/blogs/${editingBlogId}`, formData);
+        alert('Blog updated successfully!');
+      } else {
+        response = await API.post('/blogs', formData);
         alert('Blog published successfully!');
+      }
+      
+      if (response.data) {
         navigate('/');
       }
     } catch (error) {
       const errorData = error.response?.data;
-      let msg = 'Failed to create blog. Please try again.';
+      let msg = `Failed to ${isEditing ? 'update' : 'create'} blog. Please try again.`;
       
       if (errorData?.errors && Array.isArray(errorData.errors)) {
         msg = errorData.errors.join(', ');
@@ -111,13 +180,24 @@ const CreateBlog = () => {
               disabled={loading || !isFormValid}
               className="px-5 py-2 rounded-full bg-stone-900 dark:bg-white text-white dark:text-stone-900 text-sm font-bold shadow-lg hover:scale-105 active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
             >
-              {loading ? 'Publishing...' : 'Publish'}
+              {loading ? (isEditing ? 'Updating...' : 'Publishing...') : (isEditing ? 'Update' : 'Publish')}
             </button>
           </div>
         </div>
       </nav>
 
       <main className="max-w-3xl mx-auto px-6 pt-32 pb-20">
+        
+        {/* Page Title */}
+        <div className="mb-8">
+          <h1 className="text-3xl md:text-4xl font-bold text-stone-900 dark:text-white flex items-center space-x-3">
+            {isEditing ? <FiEdit3 /> : <FiSend />}
+            <span>{isEditing ? 'Edit Blog' : 'Create New Blog'}</span>
+          </h1>
+          <p className="text-stone-500 dark:text-stone-400 mt-2">
+            {isEditing ? 'Update your blog post' : 'Share your thoughts with the world'}
+          </p>
+        </div>
         
         {errors.length > 0 && (
           <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-xl flex items-start space-x-3">
@@ -194,7 +274,7 @@ const CreateBlog = () => {
               className="w-full md:w-auto flex items-center justify-center space-x-3 px-8 py-4 rounded-2xl bg-stone-900 dark:bg-white text-white dark:text-stone-900 font-bold shadow-xl hover:-translate-y-1 active:scale-95 transition-all disabled:opacity-20 disabled:cursor-not-allowed disabled:hover:translate-y-0"
             >
               <FiSend size={18} />
-              <span>{loading ? 'Publishing...' : 'Publish Post Now'}</span>
+              <span>{loading ? (isEditing ? 'Updating...' : 'Publishing...') : (isEditing ? 'Update Post Now' : 'Publish Post Now')}</span>
             </button>
           </div>
         </form>

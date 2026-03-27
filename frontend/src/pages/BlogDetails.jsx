@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { FiMessageCircle, FiArrowLeft, FiBookmark, FiShare2, FiCheck, FiAlertCircle } from 'react-icons/fi';
-import { useParams, useNavigate } from 'react-router-dom';
+import { FiMessageCircle, FiArrowLeft, FiBookmark, FiShare2, FiCheck, FiAlertCircle, FiEdit3, FiTrash2 } from 'react-icons/fi';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import CommentSection from '../components/CommentSection';
 import LikeButton from '../components/LikeButton';
@@ -16,14 +16,14 @@ const BlogDetails = () => {
   const [copied, setCopied] = useState(false);
   const [user, setUser] = useState(null);
 
+  const location = useLocation();
+
   useEffect(() => {
     window.scrollTo(0, 0);
-    
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      setUser(JSON.parse(userData));
-    }
 
+    const userData = localStorage.getItem('user');
+    setUser(userData ? JSON.parse(userData) : null);
+    
     const fetchBlog = async () => {
       try {
         const response = await API.get(`/blogs/${id}`);
@@ -38,7 +38,22 @@ const BlogDetails = () => {
     };
 
     fetchBlog();
-  }, [id]);
+  }, [id, location]);
+
+  useEffect(() => {
+    const handleUserUpdate = () => {
+      const userData = localStorage.getItem('user');
+      setUser(userData ? JSON.parse(userData) : null);
+    };
+
+    window.addEventListener('storage', handleUserUpdate);
+    window.addEventListener('userChanged', handleUserUpdate);
+
+    return () => {
+      window.removeEventListener('storage', handleUserUpdate);
+      window.removeEventListener('userChanged', handleUserUpdate);
+    };
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -58,6 +73,25 @@ const BlogDetails = () => {
     navigator.clipboard.writeText(window.location.href);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleEditBlog = () => {
+    // Redirect to create blog page with edit mode (route is /create)
+    navigate(`/create?edit=${blog._id}`);
+  };
+
+  const handleDeleteBlog = async () => {
+    if (!window.confirm('Are you sure you want to delete this blog? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      await API.delete(`/blogs/${blog._id}`);
+      navigate('/');
+    } catch (err) {
+      console.error('Delete blog error:', err);
+      alert('Failed to delete blog. Please try again.');
+    }
   };
 
   if (loading) {
@@ -110,7 +144,7 @@ const BlogDetails = () => {
       <main className="relative z-10 max-w-7xl mx-auto px-4 md:px-6 pt-28 pb-20">
         
         {/* Navigation & Engagement Bar */}
-        <div className="max-w-3xl mx-auto mb-12 flex items-center justify-between">
+          <div className="max-w-3xl mx-auto mb-12 flex flex-wrap items-center justify-between gap-3">
           <button 
             onClick={() => navigate('/')}
             className="flex items-center space-x-2 text-stone-400 hover:text-stone-900 dark:hover:text-white transition-all text-xs font-black uppercase tracking-widest"
@@ -137,6 +171,26 @@ const BlogDetails = () => {
                 </span>
               )}
             </button>
+
+            {user && blog.author && user._id === blog.author._id && (
+              <>
+                <button 
+                  onClick={handleEditBlog}
+                  className="p-3 rounded-2xl bg-white/60 dark:bg-stone-900/60 border border-stone-200 dark:border-stone-800 text-stone-400 hover:text-blue-500 transition-all shadow-sm"
+                  title="Edit blog"
+                >
+                  <FiEdit3 size={18} />
+                </button>
+
+                <button 
+                  onClick={handleDeleteBlog}
+                  className="p-3 rounded-2xl bg-white/60 dark:bg-stone-900/60 border border-stone-200 dark:border-stone-800 text-stone-400 hover:text-red-500 transition-all shadow-sm"
+                  title="Delete blog"
+                >
+                  <FiTrash2 size={18} />
+                </button>
+              </>
+            )}
 
             <button 
               onClick={handleCopyLink}

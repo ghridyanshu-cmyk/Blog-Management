@@ -1,9 +1,20 @@
 const Blog = require('../models/Blog');
 
+const calculateReadTime = (content) => {
+  if (!content || !content.trim()) return '1 min';
+  const words = content.trim().split(/\s+/).length;
+  const wordsPerMinute = 200;
+  const minutes = Math.max(1, Math.ceil(words / wordsPerMinute));
+  return `${minutes} min`;
+};
+
 const getBlogs = async (req, res) => {
   try {
-    const { category } = req.query;
-    const query = category && category !== 'All' ? { category } : {};
+    const { category, author } = req.query;
+    const query = {};
+
+    if (category && category !== 'All') query.category = category;
+    if (author) query.author = author;
 
     const blogs = await Blog.find(query)
       .populate('author', 'name avatar')
@@ -51,6 +62,13 @@ const createBlog = async (req, res) => {
   const { title, category, content, image, readTime } = req.body;
 
   try {
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({
+        success: false,
+        errors: ['Authentication required to create a blog']
+      });
+    }
+
     if (!title || !category || !content || !image) {
       return res.status(400).json({
         success: false,
@@ -58,24 +76,27 @@ const createBlog = async (req, res) => {
       });
     }
 
+    const resolvedReadTime = readTime && readTime.trim() ? readTime.trim() : calculateReadTime(content);
+
     const blog = new Blog({
       author: req.user._id,
       title: title.trim(),
       category,
       content: content.trim(),
-      image,
-      readTime: readTime || '5 min'
+      image: image.trim(),
+      readTime: resolvedReadTime
     });
 
     const createdBlog = await blog.save();
     const populatedBlog = await createdBlog.populate('author', 'name avatar');
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: 'Blog created successfully',
       blog: populatedBlog
     });
   } catch (error) {
+    console.error('createBlog error:', error);
     if (error.name === 'ValidationError') {
       const errors = Object.values(error.errors).map(err => err.message);
       return res.status(400).json({ success: false, errors });

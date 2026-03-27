@@ -15,8 +15,8 @@ const validateBlogData = (req, res, next) => {
     errors.push('Content must be at least 10 characters long');
   }
   
-  if (!image || !image.match(/^https?:\/\/.+/)) {
-    errors.push('Please provide a valid image URL');
+  if (!image || !image.trim()) {
+    errors.push('Please provide a valid image URL or path');
   }
   
   if (errors.length > 0) {

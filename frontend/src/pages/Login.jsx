@@ -41,6 +41,7 @@ const Login = () => {
         // Store token in localStorage
         localStorage.setItem('token', response.data.user.token);
         localStorage.setItem('user', JSON.stringify(response.data.user));
+        window.dispatchEvent(new Event('userChanged'));
         
         // Redirect to home after short delay
         setTimeout(() => {

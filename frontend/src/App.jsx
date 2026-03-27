@@ -4,7 +4,10 @@ import Navbar from "./components/Navbar";
 import Home from "./pages/Home";
 import BlogDetails from "./pages/BlogDetails";
 import CreateBlog from "./pages/CreateBlog";
+import Trending from "./pages/Trending";
+import Bookmarks from "./pages/Bookmarks";
 import AdminDashboard from "./pages/AdminDashboard";
+import UserDashboard from "./pages/UserDashboard";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import CustomCursor from "./components/CustomCursor";
@@ -31,6 +34,9 @@ function AnimatedRoutes() {
         <Route path="/" element={<PageTransition><Home /></PageTransition>} />
         <Route path="/blog/:id" element={<PageTransition><BlogDetails /></PageTransition>} />
         <Route path="/create" element={<PageTransition><CreateBlog /></PageTransition>} />
+        <Route path="/trending" element={<PageTransition><Trending /></PageTransition>} />
+        <Route path="/bookmarks" element={<PageTransition><Bookmarks /></PageTransition>} />
+        <Route path="/dashboard" element={<PageTransition><UserDashboard /></PageTransition>} />
         <Route path="/admin" element={<PageTransition><AdminDashboard /></PageTransition>} />
         <Route path="/login" element={<PageTransition><Login /></PageTransition>} />
         <Route path="/register" element={<PageTransition><Register /></PageTransition>} />

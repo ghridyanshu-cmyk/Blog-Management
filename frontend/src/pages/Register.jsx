@@ -54,6 +54,7 @@ const Register = () => {
         // Store token in localStorage
         localStorage.setItem('token', response.data.user.token);
         localStorage.setItem('user', JSON.stringify(response.data.user));
+        window.dispatchEvent(new Event('userChanged'));
         
         // Redirect to login after short delay
         setTimeout(() => {

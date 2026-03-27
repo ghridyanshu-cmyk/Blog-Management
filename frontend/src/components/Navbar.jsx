@@ -9,21 +9,32 @@ import {
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [searchActive, setSearchActive] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const [user, setUser] = useState(null);
   const location = useLocation();
   const navigate = useNavigate();
 
   useEffect(() => {
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      setUser(JSON.parse(userData));
-    }
+    const loadUser = () => {
+      const userData = localStorage.getItem('user');
+      setUser(userData ? JSON.parse(userData) : null);
+    };
+
+    loadUser();
+    window.addEventListener('storage', loadUser);
+    window.addEventListener('userChanged', loadUser);
+
+    return () => {
+      window.removeEventListener('storage', loadUser);
+      window.removeEventListener('userChanged', loadUser);
+    };
   }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setUser(null);
+    window.dispatchEvent(new Event('userChanged'));
     navigate('/');
     window.location.reload();
   };
@@ -63,6 +74,11 @@ export default function Navbar() {
           <input 
             type="text" 
             placeholder="Search blogs..." 
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              window.dispatchEvent(new CustomEvent('filterBlogs', { detail: e.target.value }));
+            }}
             onFocus={() => setSearchActive(true)}
             onBlur={() => setSearchActive(false)}
             className="bg-transparent border-none outline-none text-sm w-full text-stone-700 dark:text-stone-300 placeholder:text-stone-400"
@@ -75,9 +91,13 @@ export default function Navbar() {
             <Link to="/create" className={`p-2.5 rounded-xl transition-all ${isActive('/create') ? 'bg-stone-900 dark:bg-white text-white dark:text-stone-900' : 'text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800'}`}>
               <FiPlusSquare size={22} />
             </Link>
-            <Link to="/admin" className={`p-2.5 rounded-xl transition-all ${isActive('/admin') ? 'bg-stone-900 dark:bg-white text-white dark:text-stone-900' : 'text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800'}`}>
-              <FiGrid size={22} />
-            </Link>
+            {user && (
+              <Link
+                to={user.isAdmin ? '/admin' : '/dashboard'}
+                className={`p-2.5 rounded-xl transition-all ${isActive(user.isAdmin ? '/admin' : '/dashboard') ? 'bg-stone-900 dark:bg-white text-white dark:text-stone-900' : 'text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800'}`}>
+                <FiGrid size={22} />
+              </Link>
+            )}
           </div>
 
           <div className="h-8 w-px bg-stone-200 dark:bg-stone-800 hidden md:block"></div>
@@ -143,10 +163,12 @@ export default function Navbar() {
                 <span>Write a Blog</span>
                 <FiPlusSquare />
               </Link>
-              <Link onClick={() => setIsOpen(false)} to="/admin" className="flex items-center justify-between p-5 border border-stone-200 dark:border-stone-800 rounded-3xl font-bold">
-                <span>Dashboard</span>
-                <FiGrid />
-              </Link>
+              {user && (
+                <Link onClick={() => setIsOpen(false)} to={user.isAdmin ? '/admin' : '/dashboard'} className="flex items-center justify-between p-5 border border-stone-200 dark:border-stone-800 rounded-3xl font-bold">
+                  <span>{user.isAdmin ? 'Admin Dashboard' : 'My Dashboard'}</span>
+                  <FiGrid />
+                </Link>
+              )}
               {user && (
                 <button 
                   onClick={() => {

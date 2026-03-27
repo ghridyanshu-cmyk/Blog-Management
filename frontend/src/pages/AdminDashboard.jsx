@@ -1,13 +1,90 @@
-import React from 'react';
-import { FiPlus, FiBarChart2, FiLayers, FiEye, FiEdit3, FiTrash2, FiActivity, FiSettings, FiArrowRight } from 'react-icons/fi';
-
-const stats = [
-  { label: 'Total Views', value: '12,450', icon: <FiEye />, color: 'bg-green-500', glow: 'shadow-green-500/20' },
-  { label: 'Live Posts', value: '38', icon: <FiLayers />, color: 'bg-amber-500', glow: 'shadow-amber-500/20' },
-  { label: 'Avg. Read Time', value: '4.2 min', icon: <FiActivity />, color: 'bg-stone-500', glow: 'shadow-stone-500/20' },
-];
+import React, { useEffect, useState } from 'react';
+import { FiPlus, FiBarChart2, FiLayers, FiEye, FiEdit3, FiTrash2, FiActivity, FiSettings, FiArrowRight, FiAlertCircle, FiUser, FiHeart } from 'react-icons/fi';
+import API from '../services/api';
 
 const AdminDashboard = () => {
+  const [stats, setStats] = useState([
+    { label: 'Total Blogs', value: '0', icon: <FiLayers />, color: 'bg-amber-500', glow: 'shadow-amber-500/20' },
+    { label: 'Total Users', value: '0', icon: <FiUser />, color: 'bg-blue-500', glow: 'shadow-blue-500/20' },
+    { label: 'Total Likes', value: '0', icon: <FiHeart />, color: 'bg-green-500', glow: 'shadow-green-500/20' }
+  ]);
+  const [blogs, setBlogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      setUser(JSON.parse(userData));
+    }
+
+    const fetchAdminData = async () => {
+      try {
+        setLoading(true);
+        const [statsRes, blogsRes] = await Promise.all([
+          API.get('/admin/stats'),
+          API.get('/admin/blogs')
+        ]);
+
+        setStats([
+          { label: 'Total Blogs', value: statsRes.data.totalBlogs || 0, icon: <FiLayers />, color: 'bg-amber-500', glow: 'shadow-amber-500/20' },
+          { label: 'Total Users', value: statsRes.data.totalUsers || 0, icon: <FiUser />, color: 'bg-blue-500', glow: 'shadow-blue-500/20' },
+          { label: 'Total Likes', value: statsRes.data.totalLikes || 0, icon: <FiHeart />, color: 'bg-green-500', glow: 'shadow-green-500/20' }
+        ]);
+
+        setBlogs(blogsRes.data || []);
+        setError('');
+      } catch (err) {
+        console.error('Admin data fetch error:', err);
+        setError('Unable to load admin data. Please check permissions.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAdminData();
+  }, []);
+
+  const handleDeleteBlog = async (blogId) => {
+    if (!window.confirm('Are you sure you want to delete this blog?')) {
+      return;
+    }
+
+    try {
+      await API.delete(`/blogs/${blogId}`);
+      setBlogs(blogs.filter(blog => blog._id !== blogId));
+      // Update stats after deletion
+      const updatedStats = stats.map(stat => {
+        if (stat.label === 'Total Blogs') {
+          return { ...stat, value: parseInt(stat.value) - 1 };
+        }
+        return stat;
+      });
+      setStats(updatedStats);
+    } catch (err) {
+      console.error('Delete blog error:', err);
+      alert('Failed to delete blog. Please try again.');
+    }
+  };
+
+  const handleEditBlog = (blogId) => {
+    // For now, just redirect to the blog details page
+    // In a full implementation, you might want to create an edit page
+    window.location.href = `/blog/${blogId}`;
+  };
+
+  if (user && !user.isAdmin) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-stone-100 dark:bg-stone-950 p-6">
+        <div className="text-center bg-white dark:bg-stone-900 p-10 rounded-3xl shadow-xl border border-stone-200 dark:border-stone-800">
+          <FiAlertCircle className="mx-auto text-red-500 mb-4" size={40} />
+          <h2 className="text-2xl font-bold text-stone-900 dark:text-white mb-2">Admin access required</h2>
+          <p className="text-stone-500 dark:text-stone-400">You need admin permissions to view this page.</p>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="relative min-h-screen bg-stone-50 dark:bg-stone-950 transition-colors duration-500 overflow-x-hidden">
       
@@ -61,30 +138,44 @@ const AdminDashboard = () => {
             </div>
 
             <div className="space-y-4">
-              {[1, 2, 3].map((item) => (
-                <div key={item} className="group p-4 md:p-5 rounded-3xl bg-white/40 dark:bg-stone-900/40 border border-stone-100 dark:border-stone-800 flex items-center justify-between hover:bg-white/80 dark:hover:bg-stone-900/80 transition-all shadow-xs">
-                  <div className="flex items-center space-x-5">
-                    <div className="h-16 w-16 rounded-2xl bg-stone-200 dark:bg-stone-800 overflow-hidden border border-stone-100 dark:border-stone-800 flex-shrink-0">
-                       <img src={`https://picsum.photos/200/200?random=${item}`} alt="thumb" className="object-cover w-full h-full opacity-80 group-hover:opacity-100 transition-opacity" />
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-stone-900 dark:text-white group-hover:text-green-600 transition-colors line-clamp-1">The Architecture of Tomorrow: {item}</h4>
-                      <div className="flex items-center space-x-3 mt-1">
-                        <span className="text-[10px] bg-stone-100 dark:bg-stone-800 px-2 py-0.5 rounded-full text-stone-400 font-bold uppercase tracking-tighter">Draft</span>
-                        <p className="text-[10px] text-stone-400 font-medium">Modified 2h ago</p>
+              {loading ? (
+                <div className="p-8 rounded-2xl bg-stone-100 dark:bg-stone-800 text-center">Loading posts...</div>
+              ) : error ? (
+                <div className="p-8 rounded-2xl bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300">{error}</div>
+              ) : blogs.length === 0 ? (
+                <div className="p-8 rounded-2xl bg-stone-100 dark:bg-stone-800 text-center">No blog posts found.</div>
+              ) : (
+                blogs.map((blogItem) => (
+                  <div key={blogItem._id} className="group p-4 md:p-5 rounded-3xl bg-white/40 dark:bg-stone-900/40 border border-stone-100 dark:border-stone-800 flex items-center justify-between hover:bg-white/80 dark:hover:bg-stone-900/80 transition-all shadow-xs">
+                    <div className="flex items-center space-x-5">
+                      <div className="h-16 w-16 rounded-2xl bg-stone-200 dark:bg-stone-800 overflow-hidden border border-stone-100 dark:border-stone-800 flex-shrink-0">
+                        <img src={blogItem.image || `https://picsum.photos/200/200?random=${blogItem._id}`} alt="thumb" className="object-cover w-full h-full opacity-80 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-stone-900 dark:text-white group-hover:text-green-600 transition-colors line-clamp-1">{blogItem.title}</h4>
+                        <div className="flex items-center space-x-3 mt-1">
+                          <span className="text-[10px] bg-stone-100 dark:bg-stone-800 px-2 py-0.5 rounded-full text-stone-400 font-bold uppercase tracking-tighter">{blogItem.category || 'Uncategorized'}</span>
+                          <p className="text-[10px] text-stone-400 font-medium">{new Date(blogItem.createdAt).toLocaleString()}</p>
+                        </div>
                       </div>
                     </div>
+                    <div className="flex items-center space-x-2 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button 
+                        onClick={() => handleEditBlog(blogItem._id)}
+                        className="p-3 rounded-xl bg-stone-50 dark:bg-stone-800 text-stone-500 hover:text-green-500 transition-colors shadow-sm"
+                      >
+                        <FiEdit3 size={18} />
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteBlog(blogItem._id)}
+                        className="p-3 rounded-xl bg-stone-50 dark:bg-stone-800 text-stone-500 hover:text-red-500 transition-colors shadow-sm"
+                      >
+                        <FiTrash2 size={18} />
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex items-center space-x-2 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button className="p-3 rounded-xl bg-stone-50 dark:bg-stone-800 text-stone-500 hover:text-green-500 transition-colors shadow-sm">
-                      <FiEdit3 size={18} />
-                    </button>
-                    <button className="p-3 rounded-xl bg-stone-50 dark:bg-stone-800 text-stone-500 hover:text-red-500 transition-colors shadow-sm">
-                      <FiTrash2 size={18} />
-                    </button>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
 
