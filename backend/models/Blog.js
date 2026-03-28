@@ -1,5 +1,26 @@
 const mongoose = require('mongoose');
 
+// Separate schema for comments for cleaner code and better validation
+const commentSchema = new mongoose.Schema({
+  user: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'User',
+    required: true 
+  },
+  name: { 
+    type: String, 
+    required: true // This ensures every comment MUST have a name saved
+  },
+  text: { 
+    type: String, 
+    required: [true, 'Comment text cannot be empty'] 
+  },
+  createdAt: { 
+    type: Date, 
+    default: Date.now 
+  }
+});
+
 const blogSchema = mongoose.Schema({
   author: { 
     type: mongoose.Schema.Types.ObjectId, 
@@ -14,7 +35,7 @@ const blogSchema = mongoose.Schema({
   category: { 
     type: String, 
     required: [true, 'Please select a category'],
-    enum: ['Tech', 'Health', 'Education', 'Sports', 'Lifestyle'] // Matches your CategoryFilter
+    enum: ['Tech', 'Health', 'Education', 'Sports', 'Lifestyle']
   },
   image: { 
     type: String, 
@@ -34,14 +55,7 @@ const blogSchema = mongoose.Schema({
       ref: 'User' 
     }
   ],
-  comments: [
-    {
-      user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-      userName: String,
-      text: { type: String, required: true },
-      date: { type: Date, default: Date.now }
-    }
-  ]
+  comments: [commentSchema] // Using the defined schema above
 }, { 
   timestamps: true 
 });

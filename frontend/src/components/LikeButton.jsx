@@ -2,63 +2,70 @@ import React, { useState, useEffect } from 'react';
 import { FiHeart } from 'react-icons/fi';
 import API from '../services/api';
 
-const LikeButton = ({ blogId, initialLikes = [], currentUser = null }) => {
-  const [liked, setLiked] = useState(false);
-  const [count, setCount] = useState(initialLikes?.length || 0);
+const LikeButton = ({ blogId, initialLikes = [], currentUser }) => {
+  const [likes, setLikes] = useState(initialLikes);
+  const [isLiked, setIsLiked] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (currentUser && initialLikes) {
-      setLiked(initialLikes
-        .map((like) => like?.toString?.() || like)
-        .includes(currentUser._id?.toString?.()));
-      setCount(initialLikes.length);
-    } else {
-      setLiked(false);
-      setCount(initialLikes?.length || 0);
+    if (currentUser && likes.length > 0) {
+      const userId = currentUser._id || currentUser.id;
+      setIsLiked(likes.some(id => id === userId || id._id === userId));
     }
-  }, [initialLikes, currentUser]);
+  }, [likes, currentUser]);
 
-  const toggleLike = async () => {
+  const handleLike = async (e) => {
+    e.preventDefault();
     if (!currentUser) {
-      alert('Please login to like this blog');
-      window.location.href = '/login';
+      alert("Please login to like this post");
       return;
     }
 
     setLoading(true);
     try {
       const response = await API.put(`/blogs/${blogId}/like`);
-      
-      if (response.data) {
-        setLiked(response.data.isLiked);
-        setCount(response.data.likesCount);
+      if (response.data.success) {
+        // We fetch the latest count from the server response
+        // Adjust this based on if your backend returns the full array or just a count
+        if (isLiked) {
+          setLikes(prev => prev.filter(id => id !== (currentUser._id || currentUser.id)));
+        } else {
+          setLikes(prev => [...prev, (currentUser._id || currentUser.id)]);
+        }
+        setIsLiked(!isLiked);
       }
     } catch (err) {
-      console.error('Failed to like blog:', err);
-      alert('Failed to update like. Please try again.');
+      console.error("Like error:", err);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <button 
-      onClick={toggleLike}
+    <button
+      onClick={handleLike}
       disabled={loading}
-      className="group flex flex-col items-center space-y-1 transition-all active:scale-90 disabled:opacity-50 disabled:cursor-not-allowed"
+      className={`
+        group flex items-center justify-center gap-2 px-4 h-11 rounded-2xl transition-all shadow-sm border
+        ${isLiked 
+          ? 'bg-red-50 border-red-100 text-red-500 dark:bg-red-950/20 dark:border-red-900/30' 
+          : 'bg-white/60 dark:bg-stone-900/60 border-stone-200 dark:border-stone-800 text-stone-400 hover:text-red-500'
+        }
+      `}
     >
-      <div className={`
-        h-10 w-10 md:h-12 md:w-12 rounded-full flex items-center justify-center transition-all duration-300
-        ${liked 
-          ? 'bg-red-500 shadow-[0_0_20px_rgba(239,68,68,0.5)] text-white' 
-          : 'bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 text-stone-400 group-hover:border-red-200'}
-      `}>
-        <FiHeart className={`inline-block leading-none text-xl md:text-2xl ${liked ? 'fill-current animate-pulse' : 'group-hover:scale-110 transition-transform'}`} />
+      {/* Icon and Count wrapped in a flex container for perfect vertical alignment */}
+      <div className="flex items-center gap-1.5 leading-none">
+        <FiHeart 
+          size={18} 
+          className={`transition-transform duration-300 ${isLiked ? 'fill-current scale-110' : 'group-hover:scale-110'}`} 
+        />
+        
+        {likes.length > 0 && (
+          <span className="text-sm font-bold mt-0.5">
+            {likes.length}
+          </span>
+        )}
       </div>
-      <span className={`text-[10px] md:text-xs font-black uppercase tracking-tighter ${liked ? 'text-red-500' : 'text-stone-400'}`}>
-        {count.toLocaleString()}
-      </span>
     </button>
   );
 };
