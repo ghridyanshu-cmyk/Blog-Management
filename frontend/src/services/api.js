@@ -1,10 +1,12 @@
 import axios from "axios";
 
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+
 const API = axios.create({
-  baseURL: "http://localhost:5000/api",
+  baseURL: BASE_URL,
+  withCredentials: true,
 });
 
-// Request interceptor to add token to headers
 API.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
@@ -16,15 +18,15 @@ API.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor to handle errors
 API.interceptors.response.use(
   (response) => response,
   (error) => {
-    // If token is invalid or expired, clear localStorage and redirect to login
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      window.location.href = '/login';
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }
