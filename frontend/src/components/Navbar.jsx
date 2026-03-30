@@ -11,8 +11,13 @@ export default function Navbar() {
   const [searchActive, setSearchActive] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [user, setUser] = useState(null);
+  const [isVisible, setIsVisible] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
+  
   const location = useLocation();
   const navigate = useNavigate();
+
+  const isHomePage = location.pathname === "/";
 
   useEffect(() => {
     const loadUser = () => {
@@ -30,6 +35,20 @@ export default function Navbar() {
     };
   }, []);
 
+  useEffect(() => {
+    const controlNavbar = () => {
+      if (window.scrollY > lastScrollY && window.scrollY > 50) {
+        setIsVisible(false);
+      } else {
+        setIsVisible(true);
+      }
+      setLastScrollY(window.scrollY);
+    };
+
+    window.addEventListener("scroll", controlNavbar);
+    return () => window.removeEventListener("scroll", controlNavbar);
+  }, [lastScrollY]);
+
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -41,11 +60,16 @@ export default function Navbar() {
 
   const isActive = (path) => location.pathname === path;
 
+  if (!isHomePage) return null;
+
   return (
-    <nav className="fixed top-0 left-0 right-0 z-[100] px-4 py-4 md:px-6">
+    <nav 
+      className={`fixed top-0 left-0 right-0 z-[100] px-4 py-4 md:px-6 transition-transform duration-500 ease-in-out ${
+        isVisible ? "translate-y-0" : "-translate-y-full"
+      }`}
+    >
       <div className="max-w-7xl mx-auto flex justify-between items-center bg-white/70 dark:bg-stone-900/70 backdrop-blur-xl border border-white/20 dark:border-stone-800 shadow-2xl rounded-[1.5rem] md:rounded-[2.5rem] px-5 py-3 md:px-8 transition-all duration-500">
         
-        {/* 1. Left Section: Logo & Primary Links */}
         <div className="flex items-center space-x-8">
           <Link to="/" className="flex items-center space-x-2 group">
             <div className="h-10 w-10 bg-stone-900 dark:bg-white rounded-xl flex items-center justify-center transition-transform group-hover:rotate-12">
@@ -68,7 +92,6 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* 2. Middle Section: Dynamic Search Bar */}
         <div className={`hidden md:flex items-center bg-stone-100 dark:bg-stone-800/50 rounded-full px-4 py-2 transition-all ${searchActive ? 'w-64' : 'w-48'}`}>
           <FiSearch className="text-stone-400 mr-2" />
           <input 
@@ -85,7 +108,6 @@ export default function Navbar() {
           />
         </div>
 
-        {/* 3. Right Section: User Actions */}
         <div className="flex items-center space-x-2 md:space-x-6">
           <div className="hidden md:flex items-center space-x-4">
             <Link to="/create" className={`p-2.5 rounded-xl transition-all ${isActive('/create') ? 'bg-stone-900 dark:bg-white text-white dark:text-stone-900' : 'text-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800'}`}>
@@ -104,7 +126,6 @@ export default function Navbar() {
           
           <DarkModeToggle />
 
-          {/* User Profile / Auth Toggle */}
           {user ? (
             <div className="relative group">
               <button className="h-10 w-10 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center border-2 border-white dark:border-stone-700 shadow-lg font-bold text-white text-sm overflow-hidden">
@@ -130,14 +151,12 @@ export default function Navbar() {
             </Link>
           )}
 
-          {/* Mobile Menu Trigger */}
           <button onClick={() => setIsOpen(!isOpen)} className="md:hidden p-2 text-stone-900 dark:text-white">
             {isOpen ? <FiX size={24} /> : <FiMenu size={24} />}
           </button>
         </div>
       </div>
 
-      {/* 4. Mobile Overlay (Full Screen Style) */}
       {isOpen && (
         <div className="absolute top-24 left-4 right-4 bg-white/95 dark:bg-stone-900/95 backdrop-blur-2xl rounded-[2.5rem] p-8 shadow-2xl border border-stone-100 dark:border-stone-800 flex flex-col space-y-6 md:hidden animate-in fade-in zoom-in-95 duration-300">
            {user && (
@@ -168,18 +187,6 @@ export default function Navbar() {
                   <span>{user.isAdmin ? 'Admin Dashboard' : 'My Dashboard'}</span>
                   <FiGrid />
                 </Link>
-              )}
-              {user && (
-                <button 
-                  onClick={() => {
-                    setIsOpen(false);
-                    handleLogout();
-                  }}
-                  className="w-full flex items-center justify-between p-5 border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 rounded-3xl font-bold hover:bg-red-50 dark:hover:bg-red-950/30"
-                >
-                  <span>Logout</span>
-                  <FiLogOut />
-                </button>
               )}
            </div>
         </div>
